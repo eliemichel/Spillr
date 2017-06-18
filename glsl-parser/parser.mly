@@ -2,7 +2,7 @@
 	open Ast
 %}
 
-%token CLASS ELSE FALSE FOR IF INT NEW NULL
+%token CLASS STRUCT ELSE FALSE FOR IF INT NEW NULL
 %token PUBLIC RETURN THIS TRUE VIRTUAL VOID WHILE
 %token LBRACE RBRACE LPAR RPAR EQ OR AND DBLEQ NEQ LT
 %token LEQ GT GEQ PLUS MINUS STAR DIV MOD NOT INCR DECR AMP
@@ -23,8 +23,6 @@
 %nonassoc IFX
 %nonassoc ELSE
 
-/* changed the type, because the script does not return one value, but all
- * results which are calculated in the file */
 %start <Ast.ast> main
 
 
@@ -39,15 +37,25 @@ main:
 
 
 declaration:
-	| tident = TIDENT ident = IDENT LPAR RPAR LBRACE statements = statement* RBRACE
-	{
-		Ident ident
-	}
-	| VOID ident = IDENT LPAR RPAR LBRACE statements = statement* RBRACE
-	{
-		Ident ident
-	}
+	| sd = structure_declaration       { Structure_declaration sd       }
+	| gd = global_variable_declaration { Global_variable_declaration gd }
+	| fd = function_declaration        { Function_declaration fd        }
 
+
+structure_declaration:
+	| STRUCT id = IDENT SEMCOL { Ident id }
+
+global_variable_declaration:
+	| t = type_ id = IDENT SEMCOL { Global_variable id }
+
+function_declaration:
+	| t = type_ name = IDENT LPAR RPAR LBRACE statements = separated_list(SEMCOL, statement) RBRACE
+		{ {name = name; type_ = t; statements = statements} }
+
+type_:
+	|      VOID   { Void      }
+	|      INT    { Int       }
+	| id = TIDENT { TIdent id }
 
 /* expressions end with a semicolon, not with a newline character */
 statement:

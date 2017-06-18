@@ -7,6 +7,7 @@
     
     let keywords_assoc = [
         "class",   CLASS;
+        "struct",   STRUCT;
         "else",    ELSE;
         "false",   FALSE;
         "for",     FOR;
