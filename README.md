@@ -1,6 +1,7 @@
-Improved Shader Language
-========================
+Spillr - Improved Shader Language
+=================================
 
+**Warning** Highly WIP, not working yet
 
 Set of tools to reduce boilerplate around GLSL shader writing.
 
