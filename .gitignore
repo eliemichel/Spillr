@@ -1,2 +1,4 @@
+build/
+x64/
 _build/
 *.native

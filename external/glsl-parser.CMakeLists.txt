@@ -1,0 +1,39 @@
+# Drop in replacement for missing CMakeLists.txt of glsl-parser
+
+cmake_minimum_required(VERSION 3.1)
+project(glsl-parser CXX)
+
+if(CMAKE_GENERATOR MATCHES "Make")
+	set(CMAKE_CXX_FLAGS
+		"${CMAKE_CXX_FLAGS}"
+		-fno-rtti
+		-fno-exceptions
+		-Wall
+		-Wextra
+		-Wformat
+		-O3
+		)
+elseif(CMAKE_GENERATOR MATCHES "^Visual Studio")
+	set(CMAKE_CXX_FLAGS
+		"${CMAKE_CXX_FLAGS}"
+		/GR-
+		/EHsc
+		-Wall
+		-Wextra
+		-Wformat
+		/O3
+		)
+endif()
+
+
+set(SRC
+	glsl-parser/ast.cpp
+	glsl-parser/lexer.cpp
+	glsl-parser/parser.cpp
+	glsl-parser/print.cpp
+	glsl-parser/util.cpp
+	)
+
+add_library(libGlslParser ${SRC})
+target_include_directories(libGlslParser PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
