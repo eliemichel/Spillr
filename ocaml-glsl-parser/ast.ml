@@ -8,8 +8,10 @@ and declaration =
 	| Global_variable_declaration of global_variable_declaration
 	| Function_declaration of function_declaration
 
-and structure_declaration =
-	| Ident of string
+and structure_declaration = {
+	struct_name: string;
+	fields: (type_ * string) list;
+}
 
 and global_variable_declaration =
 	| Global_variable of string
@@ -28,16 +30,23 @@ and type_ =
 	| TIdent of string
 
 
-let string_of_structure_declaration = function
-	| Ident s -> "Ident " ^ s
-
-let string_of_global_variable_declaration = function
-	| Global_variable s -> "Global_variable " ^ s
 
 let string_of_type = function
 	| Void -> "void"
 	| Int -> "int"
 	| TIdent id -> id
+
+let string_of_structure_declaration decl =
+	let beginning = "struct " ^ decl.struct_name ^ "{\n" in
+		(
+			List.fold_left
+			(fun acc (t, id) -> acc ^ (string_of_type t) ^ " " ^ id ^ ";\n")
+			beginning
+			decl.fields
+		) ^ "};"
+
+let string_of_global_variable_declaration = function
+	| Global_variable s -> "Global_variable " ^ s
 
 let string_of_statement = string_of_int
 

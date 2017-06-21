@@ -4,21 +4,32 @@
 
 %token CLASS STRUCT ELSE FALSE FOR IF INT NEW NULL
 %token PUBLIC RETURN THIS TRUE VIRTUAL VOID WHILE
-%token LBRACE RBRACE LPAR RPAR EQ OR AND DBLEQ NEQ LT
-%token LEQ GT GEQ PLUS MINUS STAR DIV MOD NOT INCR DECR AMP
-%token ARROW DOT SEMCOL COL COMMA IOSTREAM COUT FLOW
+%token LBRACE RBRACE LBRACKET RBRACKET LPAR RPAR
+%token ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN DIV_ASSIGN MOD_ASSIGN LFLOW_ASSIGN RFLOW_ASSIGN BITAND_ASSIGN BITXOR_ASSIGN BITOR_ASSIGN
+%token OR AND XOR DBLEQ NEQ LT LFLOW RFLOW
+%token LEQ GT GEQ PLUS MINUS STAR DIV MOD NOT INCR DECR
+%token BITNOT BITAND BITOR BITXOR
+%token DOT SEMCOL COL COMMA IOSTREAM COUT FLOW
 %token EOF
 %token <string> IDENT TIDENT INTEGER STRING
 
-%right EQ
+%left COMMA
+%right ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN DIV_ASSIGN MOD_ASSIGN LFLOW_ASSIGN RFLOW_ASSIGN BITAND_ASSIGN BITXOR_ASSIGN BITOR_ASSIGN
 %left OR
+%left XOR
 %left AND
+%left BITOR
+%left BITXOR
+%left BITAND
 %left NEQ DBLEQ
 %left LT LEQ GT GEQ
+%left LFLOW RFLOW
 %left PLUS MINUS
 %left STAR DIV MOD
-%right NOT INCR DECR AMP
-%left DOT ARROW LPAR
+%right NOT INCR DECR BITNOT
+%left DOT
+%left LBRACKET
+%left LPAR
 
 %nonassoc IFX
 %nonassoc ELSE
@@ -43,13 +54,17 @@ declaration:
 
 
 structure_declaration:
-	| STRUCT id = IDENT SEMCOL { Ident id }
+	| STRUCT name = IDENT LBRACE fields = separated_list(SEMCOL, struct_field) SEMCOL? RBRACE SEMCOL
+		{ { struct_name = name; fields = fields } }
+
+struct_field:
+	t = type_ id = IDENT { t, id }
 
 global_variable_declaration:
 	| t = type_ id = IDENT SEMCOL { Global_variable id }
 
 function_declaration:
-	| t = type_ name = IDENT LPAR RPAR LBRACE statements = separated_list(SEMCOL, statement) RBRACE
+	| t = type_ name = IDENT LPAR RPAR LBRACE statements = separated_list(SEMCOL, statement) SEMCOL? RBRACE
 		{ {name = name; type_ = t; statements = statements} }
 
 type_:

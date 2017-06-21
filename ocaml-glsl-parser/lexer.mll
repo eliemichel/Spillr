@@ -71,18 +71,18 @@
                 }
 }
 
-let chiffre = ['0'-'9']
+let digit = ['0'-'9']
 let alpha = ['a'-'z' 'A'-'Z']
-let ident = (alpha | '_')(alpha | chiffre | '_')*
+let ident = (alpha | '_')(alpha | digit | '_')*
 let tident = ident
 
-let chiffre_octal = ['0'-'7']
-let chiffre_hexa = ['0'-'9' 'a'-'f' 'A'-'F']
-let entier =
+let octal_digit = ['0'-'7']
+let hexa_digit = ['0'-'9' 'a'-'f' 'A'-'F']
+let number =
       '0'
-    | ['1'-'9'] chiffre*
-    | '0' chiffre_octal+
-    | "0x" chiffre_hexa+
+    | ['1'-'9'] digit*
+    | '0' octal_digit+
+    | "0x" hexa_digit+
 
 let whitespace = [' ' '\t']+
 let commentaire_simple = "//" [^'\n']* '\n'
@@ -91,14 +91,27 @@ rule token = parse
     | '\n'                      { newline lexbuf ; token lexbuf}
     | whitespace                { token lexbuf }
     | ident as id               { id_or_keyword id }
-    | entier as n               { INTEGER n }
+    | number as n               { INTEGER n }
     | '"'    { STRING (chaine "" lexbuf) }
     | '{'    { LBRACE }
     | '}'    { RBRACE }
+    | '['    { LBRACKET }
+    | ']'    { RBRACKET }
     | '('    { LPAR }
     | ')'    { RPAR }
-    | '='    { EQ }
+    | '='    { ASSIGN }
+    | "+="   { PLUS_ASSIGN }
+    | "-="   { MINUS_ASSIGN }
+    | "*="   { STAR_ASSIGN }
+    | "/="   { DIV_ASSIGN }
+    | "%="   { MOD_ASSIGN }
+    | "<<="  { LFLOW_ASSIGN }
+    | ">>="  { RFLOW_ASSIGN }
+    | "&="   { BITAND_ASSIGN }
+    | "^="   { BITXOR_ASSIGN }
+    | "|="   { BITOR_ASSIGN }
     | "||"   { OR }
+    | "^^"   { XOR }
     | "&&"   { AND }
     | "=="   { DBLEQ }
     | "!="   { NEQ }
@@ -114,15 +127,18 @@ rule token = parse
     | '!'    { NOT }
     | "++"   { INCR }
     | "--"   { DECR }
-    | '&'    { AMP }
-    | "->"   { ARROW }
+    | '&'    { BITAND }
+    | '|'    { BITOR }
+    | '^'    { BITXOR }
+    | '~'    { BITNOT }
     | '.'    { DOT }
     | ';'    { SEMCOL }
     | ':'    { COL }
     | ','    { COMMA }
     | "#include <iostream>" { IOSTREAM }
     | "std::cout"           { COUT }
-    | "<<"   { FLOW }
+    | "<<"   { LFLOW }
+    | ">>"   { RFLOW }
     | "/*"   { comment lexbuf }
     | commentaire_simple { newline lexbuf ; token lexbuf }
     | eof    { EOF }
@@ -141,7 +157,7 @@ and chaine s = parse
     | "\\\"" { chaine (s ^ "\"") lexbuf }
     | "\\n"  { chaine (s ^ "\n") lexbuf }
     | "\\t"  { chaine (s ^ "\t") lexbuf }
-    | "\\x" (chiffre_hexa as a) (chiffre_hexa as b)
+    | "\\x" (hexa_digit as a) (hexa_digit as b)
         { chaine (s ^ (fromAscii a b)) lexbuf }
     | '"'    { s }
     | _ as c { raise (Error ("unexpected character in string : " ^ String.make 1 c)) }
