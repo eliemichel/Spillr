@@ -108,8 +108,6 @@ rule token = parse
     | ';'    { SEMCOL }
     | ':'    { COL }
     | ','    { COMMA }
-    | "#include <iostream>" { IOSTREAM }
-    | "std::cout"           { COUT }
     | "<<"   { LFLOW }
     | ">>"   { RFLOW }
     | "/*"   { comment lexbuf }
