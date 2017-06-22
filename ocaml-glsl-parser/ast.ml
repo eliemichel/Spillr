@@ -1,4 +1,6 @@
 
+type todo = int
+
 type ast = {
 	declarations : declaration list;
 }
@@ -19,10 +21,13 @@ and global_variable_declaration =
 and function_declaration = {
 	name: string;
 	type_: type_;
+	arguments: (type_ * string * expression option) list;
 	statements: statements list;
 }
 
-and statements = int
+and statements = todo
+
+and expression = todo
 
 and type_ =
 	| Void
@@ -50,16 +55,34 @@ let string_of_global_variable_declaration = function
 
 let string_of_statement = string_of_int
 
+let string_of_expression = string_of_int
+
 let string_of_function_declaration decl =
-	let beginning = (string_of_type decl.type_) ^ " " ^ decl.name ^ "() {\n" in
-		List.fold_left (fun acc s -> acc ^ ";\n" ^ (string_of_statement s)) beginning decl.statements
+	let s = (string_of_type decl.type_) ^ " " ^ decl.name ^ "(" in
+	let s, _ = List.fold_left
+		(fun (acc, is_first) ->
+			let acc = acc ^ (if is_first then "" else ", ") in
+			function
+			|  (t, arg, None) ->
+				acc ^ (string_of_type t) ^ " " ^ arg, false
+			| (t, arg, Some expr) ->
+				acc ^ (string_of_type t) ^ " " ^ arg ^ " = " ^ (string_of_expression expr), false
+		)
+		(s, true) decl.arguments
+	in
+	let s = s ^ ") {\n" in
+	let s = List.fold_left (fun acc s -> acc ^ (string_of_statement s) ^ ";\n") s decl.statements
+	in
+		s ^ "}"
 
 let string_of_declaration = function
 	| Structure_declaration sd       -> string_of_structure_declaration sd
 	| Global_variable_declaration gd -> string_of_global_variable_declaration gd
 	| Function_declaration fd        -> string_of_function_declaration fd
 
-let string_of_ast ast = List.fold_left (fun acc d -> acc ^ "\n" ^ (string_of_declaration d)) "" ast.declarations
+let string_of_ast ast =
+	let s = List.fold_left (fun acc d -> acc ^ "\n" ^ (string_of_declaration d)) "" ast.declarations in
+		s ^ "\n"
 
 let print_ast ast = print_string (string_of_ast ast)
 

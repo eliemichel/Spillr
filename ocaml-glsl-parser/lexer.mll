@@ -54,11 +54,14 @@ let int_constant =
       uint_constant
     | '-' uint_constant
 
+let line_separator =
+      ['\n' '\r']
+    | '\n'
 let whitespace = [' ' '\t']+
-let commentaire_simple = "//" [^'\n']* '\n'
+let commentaire_simple = "//" [^'\n']* line_separator
 
 rule token = parse
-    | '\n'                { newline lexbuf ; token lexbuf}
+    | line_separator      { newline lexbuf ; token lexbuf}
     | whitespace          { token lexbuf }
     | uint_constant as i  { UINT_CONST i }
     | int_constant as i   { INT_CONST i }

@@ -1,5 +1,5 @@
 %{
-	open Ast
+    open Ast
 %}
 
 %token STRUCT ELSE FOR WHILE IF NEW NULL
@@ -65,52 +65,52 @@
 %%
 
 main:
-	declarations = declaration*
-	EOF
-	{
-		{declarations = declarations}
-	}
+    | declarations = declaration* EOF
+        { {declarations = declarations} }
 
 
 declaration:
-	| sd = structure_declaration       { Structure_declaration sd       }
-	| gd = global_variable_declaration { Global_variable_declaration gd }
-	| fd = function_declaration        { Function_declaration fd        }
+    | sd = structure_declaration       { Structure_declaration sd       }
+    | gd = global_variable_declaration { Global_variable_declaration gd }
+    | fd = function_declaration        { Function_declaration fd        }
 
 
 structure_declaration:
-	| STRUCT name = IDENT LBRACE fields = separated_list(SEMCOL, struct_field) SEMCOL? RBRACE SEMCOL
-		{ { struct_name = name; fields = fields } }
+    | STRUCT name = IDENT LBRACE fields = separated_list(SEMCOL, struct_field) SEMCOL? RBRACE SEMCOL
+        { { struct_name = name; fields = fields } }
 
 struct_field:
-	t = type_ id = IDENT { t, id }
+    t = type_ id = IDENT { t, id }
 
 global_variable_declaration:
-	| t = type_ id = IDENT SEMCOL { Global_variable id }
+    | t = type_ id = IDENT SEMCOL { Global_variable id }
 
 function_declaration:
-	| t = type_ name = IDENT LPAR RPAR LBRACE statements = separated_list(SEMCOL, statement) SEMCOL? RBRACE
-		{ {name = name; type_ = t; statements = statements} }
+    | t = type_ name = IDENT LPAR args = separated_list(COMMA, function_argument) RPAR
+      LBRACE statements = separated_list(SEMCOL, statement) SEMCOL? RBRACE
+        { { name = name; type_ = t; arguments = args; statements = statements } }
+
+function_argument:
+    | t = type_ name = IDENT default = option(default_argument)
+        { t, name, default }
+
+default_argument:
+    | ASSIGN e = expression { e }
 
 type_:
-	|      TVOID  { Void      }
-	|      TINT   { Int       }
-	| id = TIDENT { TIdent id }
+    |      TVOID  { Void      }
+    |      TINT   { Int       }
+    | id = TIDENT { TIdent id }
 
-/* expressions end with a semicolon, not with a newline character */
+
 statement:
-| e = expr SEMCOL { e }
+    | e = expression SEMCOL { e }
 
-expr:
-| i = INT_CONST
-    { int_of_string i }
-| LPAR e = expr RPAR
-    { e }
-| e1 = expr PLUS e2 = expr
-    { e1 + e2 }
-| e1 = expr MINUS e2 = expr
-    { e1 - e2 }
-| e1 = expr STAR e2 = expr
-    { e1 * e2 }
-| e1 = expr DIV e2 = expr
-    { e1 / e2 }
+expression:
+    | i = INT_CONST                         { int_of_string i }
+    | i = UINT_CONST                        { int_of_string i }
+    | LPAR e = expression RPAR              { e               }
+    | e1 = expression PLUS e2 = expression  { e1 + e2         }
+    | e1 = expression MINUS e2 = expression { e1 - e2         }
+    | e1 = expression STAR e2 = expression  { e1 * e2         }
+    | e1 = expression DIV e2 = expression   { e1 / e2         }
