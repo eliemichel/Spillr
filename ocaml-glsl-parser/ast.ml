@@ -27,7 +27,8 @@ and function_declaration = {
 }
 
 and function_argument =
-	storage option * auxiliary option * type_ * string option * string option * expression option
+	storage option * auxiliary option * memory list * precision option
+	* type_ * string option * string option * expression option
 
 and storage =
 	| Const
@@ -43,6 +44,18 @@ and auxiliary =
 	| Centroid
 	| Sample
 	| Patch
+
+and memory =
+	| Coherent
+	| Volatile
+	| Restrict
+	| ReadOnly
+	| WriteOnly
+
+and precision =
+	| Lowp
+	| Mediump
+	| Highp
 
 and statements = todo
 
@@ -93,14 +106,33 @@ let string_of_storage_option = function
 	| Some Buffer ->    "buffer "
 	| Some Shared ->    "shared "
 
+let string_of_memory = function
+    | Coherent -> "coherent "
+    | Volatile -> "volatile "
+    | Restrict -> "restrict "
+    | ReadOnly -> "readonly "
+    | WriteOnly -> "writeonly "
+
+let string_of_precision_option = function
+	| None -> ""
+	| Some Lowp    -> "lowp "
+	| Some Mediump -> "mediump "
+	| Some Highp   -> "highp "
+
+let rec string_of_memory_list = function
+    | mem :: t -> (string_of_memory mem) ^ (string_of_memory_list t)
+    | [] -> ""
+
 let string_of_function_declaration decl =
 	let s = (string_of_type decl.type_) ^ " " ^ decl.name ^ "(" in
 	let s, _ = List.fold_left
-		(fun (acc, is_first) (storage, aux, t, arg_name, array_size, default) ->
+		(fun (acc, is_first) (storage, aux, mem, prec, t, arg_name, array_size, default) ->
 			acc ^
 			(if is_first then "" else ", ") ^
 			(string_of_storage_option storage) ^
 			(string_of_auxiliary_option aux) ^
+			(string_of_memory_list mem) ^
+			(string_of_precision_option prec) ^
 			(string_of_type t) ^
 			(
 				match arg_name with

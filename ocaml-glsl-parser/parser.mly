@@ -79,9 +79,9 @@ function_declaration:
         { { name = name; type_ = t; arguments = args; statements = []; is_prototype = true } }
 
 function_argument:
-    | s = storage? a = auxiliary? m = memory p = precision
+    | s = storage? a = auxiliary? m = memory* p = precision?
       t = type_ name = IDENT? size = array_size? default = option(default_argument)
-        { s, a, t, name, size, default }
+        { s, a, m, p, t, name, size, default }
 
 array_size:
     | LBRACKET s = UINT_CONST RBRACKET
@@ -103,10 +103,16 @@ auxiliary:
     | PATCH    { Patch       }
 
 memory:
-    | { 0 }
+    | COHERENT  { Coherent  }
+    | VOLATILE  { Volatile  }
+    | RESTRICT  { Restrict  }
+    | READONLY  { ReadOnly  }
+    | WRITEONLY { WriteOnly }
 
 precision:
-    | { 0 }
+    | LOWP    { Lowp    }
+    | MEDIUMP { Mediump }
+    | HIGHP   { Highp   }
 
 default_argument:
     | ASSIGN e = expression { e }
