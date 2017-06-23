@@ -21,10 +21,28 @@ and global_variable_declaration =
 and function_declaration = {
 	name: string;
 	type_: type_;
-	arguments: (type_ * string * expression option) list;
+	arguments: function_argument list;
 	statements: statements list;
 	is_prototype: bool;
 }
+
+and function_argument =
+	storage option * auxiliary option * type_ * string option * string option * expression option
+
+and storage =
+	| Const
+	| In
+	| Out
+	| Attribute
+	| Uniform
+	| Varying
+	| Buffer
+	| Shared
+
+and auxiliary =
+	| Centroid
+	| Sample
+	| Patch
 
 and statements = todo
 
@@ -58,16 +76,47 @@ let string_of_statement = string_of_int
 
 let string_of_expression = string_of_int
 
+let string_of_auxiliary_option = function
+	| None -> ""
+	| Some Centroid    -> "centroid "
+	| Some Sample      -> "sample "
+	| Some Patch       -> "patch "
+
+let string_of_storage_option = function
+	| None -> ""
+	| Some Const ->     "const "
+	| Some In ->        "in "
+	| Some Out ->       "out "
+	| Some Attribute -> "attribute "
+	| Some Uniform ->   "uniform "
+	| Some Varying ->   "varying "
+	| Some Buffer ->    "buffer "
+	| Some Shared ->    "shared "
+
 let string_of_function_declaration decl =
 	let s = (string_of_type decl.type_) ^ " " ^ decl.name ^ "(" in
 	let s, _ = List.fold_left
-		(fun (acc, is_first) ->
-			let acc = acc ^ (if is_first then "" else ", ") in
-			function
-			|  (t, arg, None) ->
-				acc ^ (string_of_type t) ^ " " ^ arg, false
-			| (t, arg, Some expr) ->
-				acc ^ (string_of_type t) ^ " " ^ arg ^ " = " ^ (string_of_expression expr), false
+		(fun (acc, is_first) (storage, aux, t, arg_name, array_size, default) ->
+			acc ^
+			(if is_first then "" else ", ") ^
+			(string_of_storage_option storage) ^
+			(string_of_auxiliary_option aux) ^
+			(string_of_type t) ^
+			(
+				match arg_name with
+				| None -> ""
+				| Some name -> " " ^ name
+			) ^
+			(
+				match array_size with
+				| None -> ""
+				| Some size -> "[" ^ size ^ "]"
+			) ^
+			(
+				match default with
+				| None -> ""
+				| Some expr -> " = " ^ (string_of_expression expr)
+			), false
 		)
 		(s, true) decl.arguments
 	in
