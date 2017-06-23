@@ -23,6 +23,7 @@ and function_declaration = {
 	type_: type_;
 	arguments: (type_ * string * expression option) list;
 	statements: statements list;
+	is_prototype: bool;
 }
 
 and statements = todo
@@ -70,10 +71,15 @@ let string_of_function_declaration decl =
 		)
 		(s, true) decl.arguments
 	in
-	let s = s ^ ") {\n" in
-	let s = List.fold_left (fun acc s -> acc ^ (string_of_statement s) ^ ";\n") s decl.statements
-	in
-		s ^ "}"
+	let s = s ^ ")" in
+	if decl.is_prototype
+	then
+		s ^ ";"
+	else
+		let s = s ^ " {\n" in
+		let s = List.fold_left (fun acc s -> acc ^ (string_of_statement s) ^ ";\n") s decl.statements
+		in
+			s ^ "}"
 
 let string_of_declaration = function
 	| Structure_declaration sd       -> string_of_structure_declaration sd

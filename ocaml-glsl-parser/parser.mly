@@ -86,9 +86,14 @@ global_variable_declaration:
     | t = type_ id = IDENT SEMCOL { Global_variable id }
 
 function_declaration:
-    | t = type_ name = IDENT LPAR args = separated_list(COMMA, function_argument) RPAR
+    | t = type_ name = IDENT
+      LPAR args = separated_list(COMMA, function_argument) RPAR
       LBRACE statements = separated_list(SEMCOL, statement) SEMCOL? RBRACE
-        { { name = name; type_ = t; arguments = args; statements = statements } }
+        { { name = name; type_ = t; arguments = args; statements = statements; is_prototype = false } }
+    | t = type_ name = IDENT
+      LPAR args = separated_list(COMMA, function_argument) RPAR
+      SEMCOL
+        { { name = name; type_ = t; arguments = args; statements = []; is_prototype = true } }
 
 function_argument:
     | t = type_ name = IDENT default = option(default_argument)
