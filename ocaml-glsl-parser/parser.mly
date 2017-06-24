@@ -2,8 +2,8 @@
     open Ast
 %}
 
-%token STRUCT ELSE FOR WHILE IF NEW NULL
-%token PUBLIC RETURN DISCARD
+%token STRUCT ELSE FOR WHILE IF
+%token RETURN DISCARD
 %token LBRACE RBRACE LBRACKET RBRACKET LPAR RPAR
 %token ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN DIV_ASSIGN MOD_ASSIGN LFLOW_ASSIGN RFLOW_ASSIGN BITAND_ASSIGN BITXOR_ASSIGN BITOR_ASSIGN
 %token OR AND XOR DBLEQ NEQ LT LFLOW RFLOW
@@ -69,23 +69,26 @@ global_variable_declaration:
     | t = type_ id = IDENT SEMCOL { Global_variable id }
 
 function_declaration:
-    | t = type_ name = IDENT
-      LPAR args = separated_list(COMMA, function_argument) RPAR
-      LBRACE statements = separated_list(SEMCOL, statement) SEMCOL? RBRACE
-        { { name = name; type_ = t; arguments = args; statements = statements; is_prototype = false } }
-    | t = type_ name = IDENT
-      LPAR args = separated_list(COMMA, function_argument) RPAR
-      SEMCOL
-        { { name = name; type_ = t; arguments = args; statements = []; is_prototype = true } }
+    | p = prototype statements = statement_bloc
+        { let (t, name, args) = p in { name = name; type_ = t; arguments = args; body = Bloc statements } }
+    | p = prototype SEMCOL
+        { let (t, name, args) = p in { name = name; type_ = t; arguments = args; body = Empty } }
 
-function_argument:
-    | s = storage? a = auxiliary? m = memory* p = precision?
-      t = type_ name = IDENT? size = array_size? default = option(default_argument)
-        { s, a, m, p, t, name, size, default }
+prototype:
+    | t = type_ name = IDENT LPAR args = separated_list(COMMA, argument) RPAR
+        { t, name, args }
+
+argument:
+    | q = qualifiers t = type_ name = IDENT? size = array_size? default = option(default_argument)
+        { q, t, name, size, default }
 
 array_size:
     | LBRACKET s = UINT_CONST RBRACKET
         { s }
+
+qualifiers:
+    | s = storage? a = auxiliary? m = memory* p = precision?
+        { s, a, m, p }
 
 storage:
     | CONST     { Const     }
@@ -120,15 +123,52 @@ default_argument:
 type_:
     | id = TIDENT { TIdent id }
 
+statement_bloc:
+    | LBRACE statements = statement* RBRACE
+        { statements }
 
 statement:
-    | e = expression SEMCOL { e }
+    | SEMCOL                                                         { Empty                 }
+    | e = expression SEMCOL                                          { Expression e          }
+    | b = statement_bloc                                             { Bloc b                }
+    | RETURN e = expression? SEMCOL                                  { Return e              }
+    | IF LPAR e = expression RPAR s = statement %prec IFX            { If_else (e, s, Empty) }
+    | IF LPAR e = expression RPAR s1 = statement ELSE s2 = statement { If_else (e, s1, s2)   }
+    | WHILE LPAR e = expression RPAR s = statement { For ([], e, [], s) }
+    | FOR
+        LPAR
+            init = separated_list(COMMA, expression) SEMCOL
+            e = expression? SEMCOL
+            loop = separated_list(COMMA, expression)
+        RPAR
+        s = statement
+        { match e with
+            | None -> For (init, Bool true, loop, s)
+            | Some c -> For (init, c, loop, s)
+        }
+
 
 expression:
-    | i = INT_CONST                         { int_of_string i }
-    | i = UINT_CONST                        { int_of_string i }
+    | b = BOOL_CONST     { Bool b     }
+    | i = INT_CONST      { Integer i  }
+    | i = UINT_CONST     { Unsigned i }
+    | id = IDENT         { Ident id   }
+    | f = expression LPAR args = separated_list(COMMA, expression) RPAR { Application (f, args) }
     | LPAR e = expression RPAR              { e               }
-    | e1 = expression PLUS e2 = expression  { e1 + e2         }
-    | e1 = expression MINUS e2 = expression { e1 - e2         }
-    | e1 = expression STAR e2 = expression  { e1 * e2         }
-    | e1 = expression DIV e2 = expression   { e1 / e2         }
+    | e1 = expression op = operateur e2 = expression { Binop (op, e1, e2) }
+
+
+%inline operateur:
+    | DBLEQ { Dbleq }
+    | NEQ   { Neq   }
+    | LT    { Lt    }
+    | LEQ   { Leq   }
+    | GT    { Gt    }
+    | GEQ   { Geq   }
+    | PLUS  { Add   }
+    | MINUS { Sub   }
+    | STAR  { Mult  }
+    | DIV   { Div   }
+    | MOD   { Mod   }
+    | AND   { And   }
+    | OR    { Or    }
