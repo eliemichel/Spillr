@@ -72,7 +72,10 @@ and expression =
     | Bool of bool
     | Ident of string
     | Application of expression * expression list
+    | PrefixUnop of prefix_unary * expression
+    | PostfixUnop of postfix_unary * expression
     | Binop of operator * expression * expression
+    | Assignment of assignment_operator * expression * expression
 
 and operator =
     | Dbleq
@@ -88,6 +91,36 @@ and operator =
     | Mod
     | And
     | Or
+    | Xor
+    | BitAnd
+    | BitOr
+    | BitXor
+    | BitNot
+    | LFlow
+    | RFlow
+
+and prefix_unary =
+    | Not
+    | PrefixIncr
+    | PrefixDecr
+    | Minus
+    | Plus
+
+and postfix_unary =
+    | PostfixIncr
+    | PostfixDecr
+
+and assignment_operator =
+    | Plus_assign
+    | Minus_assign
+    | Star_assign
+    | Div_assign
+    | Mod_assign
+    | Lflow_assign
+    | Rflow_assign
+    | Bitand_assign
+    | Bitxor_assign
+    | Bitor_assign
 
 and type_ =
     | Void
@@ -120,18 +153,48 @@ let string_of_global_variable_declaration = function
 
 let string_of_operator = function
     | Dbleq -> "=="
-    | Neq -> "!="
-    | Lt -> "<"
-    | Leq -> "<="
-    | Gt -> ">"
-    | Geq -> ">="
-    | Add -> "+"
-    | Sub -> "-"
-    | Mult -> "*"
-    | Div -> "/"
-    | Mod -> "%"
-    | And -> "&&"
-    | Or -> "||"
+    | Neq   -> "!="
+    | Lt    -> "<"
+    | Leq   -> "<="
+    | Gt    -> ">"
+    | Geq   -> ">="
+    | Add   -> "+"
+    | Sub   -> "-"
+    | Mult  -> "*"
+    | Div   -> "/"
+    | Mod   -> "%"
+    | And   -> "&&"
+    | Or    -> "||"
+    | Xor    -> "^^"
+    | BitAnd -> "&"
+    | BitOr  -> "|"
+    | BitXor -> "^"
+    | BitNot -> "~"
+    | LFlow  -> "<<"
+    | RFlow  -> ">>"
+
+let string_of_prefix_unary = function
+    | Not        -> "!"
+    | PrefixIncr -> "++"
+    | PrefixDecr -> "--"
+    | Minus      -> "-"
+    | Plus       -> "+"
+
+let string_of_postfix_unary = function
+    | PostfixIncr -> "++"
+    | PostfixDecr -> "--"
+
+let string_of_assignment_operator = function
+    | Plus_assign   -> "+="
+    | Minus_assign  -> "-="
+    | Star_assign   -> "*="
+    | Div_assign    -> "/="
+    | Mod_assign    -> "%="
+    | Lflow_assign  -> "<<="
+    | Rflow_assign  -> ">>="
+    | Bitand_assign -> "&="
+    | Bitxor_assign -> "^="
+    | Bitor_assign  -> "|="
 
 let rec string_of_expression = function
     | Integer s -> s
@@ -140,7 +203,10 @@ let rec string_of_expression = function
     | Bool false -> "false"
     | Ident s -> s
     | Application (f, args) -> (string_of_expression f) ^ "(" ^ (join ", " (List.map string_of_expression args)) ^ ")"
+    | PrefixUnop (op, e) -> (string_of_prefix_unary op) ^ (string_of_expression e)
+    | PostfixUnop (op, e) -> (string_of_expression e) ^ (string_of_postfix_unary op)
     | Binop (op, e1, e2) -> (string_of_expression e1) ^ " " ^ (string_of_operator op) ^ " " ^ (string_of_expression e2)
+    | Assignment (op, e1, e2) -> (string_of_expression e1) ^ " " ^ (string_of_assignment_operator op) ^ " " ^ (string_of_expression e2)
 
 let string_of_statement =
     let rec aux indent =

@@ -160,11 +160,14 @@ expression:
     | i = UINT_CONST     { Unsigned i }
     | id = IDENT         { Ident id   }
     | f = expression LPAR args = separated_list(COMMA, expression) RPAR { Application (f, args) }
-    | LPAR e = expression RPAR              { e               }
-    | e1 = expression op = operateur e2 = expression { Binop (op, e1, e2) }
+    | LPAR e = expression RPAR { e }
+    | op = prefix_unary e = expression { PrefixUnop (op, e) }
+    | e = expression op = postfix_unary { PostfixUnop (op, e) }
+    | e1 = expression op = binary_operator e2 = expression { Binop (op, e1, e2) }
+    | e1 = expression op = assignment_operator e2 = expression { Assignment (op, e1, e2) }
 
 
-%inline operateur:
+%inline binary_operator:
     | DBLEQ { Dbleq }
     | NEQ   { Neq   }
     | LT    { Lt    }
@@ -178,3 +181,33 @@ expression:
     | MOD   { Mod   }
     | AND   { And   }
     | OR    { Or    }
+    | XOR    { Xor }
+    | BITAND { BitAnd }
+    | BITOR  { BitOr }
+    | BITXOR { BitXor }
+    | BITNOT { BitNot }
+    | LFLOW  { LFlow }
+    | RFLOW  { RFlow }
+
+prefix_unary:
+    | NOT   { Not        }
+    | INCR  { PrefixIncr }
+    | DECR  { PrefixDecr }
+    | PLUS  { Plus       }
+    | MINUS { Minus      }
+
+postfix_unary:
+    | INCR  { PostfixIncr }
+    | DECR  { PostfixDecr }
+
+%inline assignment_operator:
+    | PLUS_ASSIGN   { Plus_assign   }
+    | MINUS_ASSIGN  { Minus_assign  }
+    | STAR_ASSIGN   { Star_assign   }
+    | DIV_ASSIGN    { Div_assign    }
+    | MOD_ASSIGN    { Mod_assign    }
+    | LFLOW_ASSIGN  { Lflow_assign  }
+    | RFLOW_ASSIGN  { Rflow_assign  }
+    | BITAND_ASSIGN { Bitand_assign }
+    | BITXOR_ASSIGN { Bitxor_assign }
+    | BITOR_ASSIGN  { Bitor_assign  }
