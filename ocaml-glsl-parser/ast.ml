@@ -61,6 +61,7 @@ and statement =
     | Empty
     | Expression of expression
     | Bloc of statement list
+    | Declaration of type_ * string * expression option
     | Return of expression option
     | If_else of expression * statement * statement
     | For of expression list * expression * expression list * statement
@@ -150,6 +151,8 @@ let string_of_statement =
         | Empty -> ";"
         | Expression e -> (string_of_expression e) ^ ";"
         | Bloc l -> "{" ^ new_line_more ^ (join new_line_more (List.map (aux indent_more) l)) ^ new_line ^ "}"
+        | Declaration (t, var, None) -> (string_of_type t) ^ " " ^ var ^ ";"
+        | Declaration (t, var, Some expr) -> (string_of_type t) ^ " " ^ var ^ " = " ^ (string_of_expression expr) ^ ";"
         | Return (Some expr) -> "return " ^ (string_of_expression expr) ^ ";"
         | Return None -> "return;"
         | If_else (cond, s1, Empty) ->

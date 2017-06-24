@@ -128,12 +128,13 @@ statement_bloc:
         { statements }
 
 statement:
-    | SEMCOL                                                         { Empty                 }
-    | e = expression SEMCOL                                          { Expression e          }
-    | b = statement_bloc                                             { Bloc b                }
-    | RETURN e = expression? SEMCOL                                  { Return e              }
-    | IF LPAR e = expression RPAR s = statement %prec IFX            { If_else (e, s, Empty) }
-    | IF LPAR e = expression RPAR s1 = statement ELSE s2 = statement { If_else (e, s1, s2)   }
+    | SEMCOL                                                         { Empty                      }
+    | e = expression SEMCOL                                          { Expression e               }
+    | b = statement_bloc                                             { Bloc b                     }
+    | t = type_ var = var init = var_init? SEMCOL                    { Declaration (t, var, init) }
+    | RETURN e = expression? SEMCOL                                  { Return e                   }
+    | IF LPAR e = expression RPAR s = statement %prec IFX            { If_else (e, s, Empty)      }
+    | IF LPAR e = expression RPAR s1 = statement ELSE s2 = statement { If_else (e, s1, s2)        }
     | WHILE LPAR e = expression RPAR s = statement { For ([], e, [], s) }
     | FOR
         LPAR
@@ -147,6 +148,11 @@ statement:
             | Some c -> For (init, c, loop, s)
         }
 
+var:
+    | id = IDENT { id }
+
+var_init:
+    | ASSIGN e = expression { e }
 
 expression:
     | b = BOOL_CONST     { Bool b     }
