@@ -17,7 +17,7 @@
 %token PRECISE PRECISION LOWP MEDIUMP HIGHP
 
 %token EOF
-%token <string> IDENT TIDENT STRING_CONST
+%token <string> IDENT TIDENT
 %token <string> UINT_CONST INT_CONST
 %token <bool> BOOL_CONST
 

@@ -68,7 +68,6 @@ rule token = parse
     | "true"              { BOOL_CONST true }
     | "false"             { BOOL_CONST false }
     | ident as id         { Lexemes.id_or_keyword id }
-    | '"'    { STRING_CONST (chaine "" lexbuf) }
     | '{'    { LBRACE }
     | '}'    { RBRACE }
     | '['    { LBRACKET }
@@ -123,17 +122,3 @@ and comment = parse
     | "*/"  { token lexbuf }
     | _     { comment lexbuf }
     | eof   { raise (Error "unexpected end of file (unterminated commentary)")}
-
-and chaine s = parse
-    | ([' '-'~'] # ['\\' '"']) as c
-        { chaine (s ^ (String.make 1 c)) lexbuf }
-    | "\\\\" { chaine (s ^ "\\") lexbuf }
-    | "\\\"" { chaine (s ^ "\"") lexbuf }
-    | "\\n"  { chaine (s ^ "\n") lexbuf }
-    | "\\t"  { chaine (s ^ "\t") lexbuf }
-    | "\\x" (hexa_digit as a) (hexa_digit as b)
-        { chaine (s ^ (fromAscii a b)) lexbuf }
-    | '"'    { s }
-    | _ as c { raise (Error ("unexpected character in string : " ^ String.make 1 c)) }
-    | eof    { raise (Error "unexpected end of file (unterminated string)") }
-
