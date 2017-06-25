@@ -64,7 +64,7 @@ struct_field:
     t = type_ id = IDENT SEMCOL { t, id }
 
 global_variable_declaration:
-    | q = qualifiers t = type_ id = IDENT SEMCOL { q, t, id }
+    | q = global_qualifiers t = type_ id = IDENT SEMCOL { q, t, id }
 
 function_declaration:
     | p = prototype statements = statement_bloc
@@ -84,8 +84,12 @@ array_size:
     | LBRACKET s = UINT_CONST RBRACKET
         { s }
 
-qualifiers:
-    | s = storage? a = auxiliary? m = memory* p = precision?
+global_qualifiers:
+    | inv = invariant_qualifier? interp = interpolation_qualifier? l = layout_qualifiers s = global_storage? a = auxiliary? m = memory* p = precision?
+        { inv, interp, l, s, a, m, p }
+
+local_qualifiers:
+    | s = local_storage? a = auxiliary? m = memory* p = precision?
         { s, a, m, p }
 
 parameter_qualifiers:
@@ -94,15 +98,36 @@ parameter_qualifiers:
     | OUT       { OutParam     }
     | INOUT     { InOutParam   }
 
-storage:
-    | CONST     { Const     }
-    | IN        { In        }
-    | OUT       { Out       }
-    | ATTRIBUTE { Attribute }
-    | UNIFORM   { Uniform   }
-    | VARYING   { Varying   }
-    | BUFFER    { Buffer    }
-    | SHARED    { Shared    }
+local_storage:
+    | CONST     { Const        }
+
+invariant_qualifier:
+    | INVARIANT { Invariant }
+
+interpolation_qualifier:
+    | FLAT          { Flat          }
+    | NOPERSPECTIVE { NoPerspective }
+    | SMOOTH        { Smooth        }
+
+layout_qualifiers:
+    | LAYOUT LPAR l = separated_nonempty_list(COMMA, layout_qualifier_expression) RPAR { l }
+    | { [] }
+
+layout_qualifier_expression:
+    | n = IDENT v = layout_qualifier_value? { n, v }
+
+layout_qualifier_value:
+    | ASSIGN i = INT_CONST { i }
+
+global_storage:
+    | CONST         { Const        }
+    | IN            { In           }
+    | OUT           { Out          }
+    | ATTRIBUTE     { Attribute    }
+    | UNIFORM       { Uniform      }
+    | VARYING       { Varying      }
+    | BUFFER        { Buffer       }
+    | SHARED        { Shared       }
 
 auxiliary:
     | CENTROID { Centroid    }
@@ -138,7 +163,7 @@ statement:
     | RETURN e = expression? SEMCOL                                  { Return e                       }
     | IF LPAR e = expression RPAR s = statement %prec IFX            { If_else (e, s, Empty)          }
     | IF LPAR e = expression RPAR s1 = statement ELSE s2 = statement { If_else (e, s1, s2)            }
-    | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) SEMCOL { Declaration (t, l)     }
+    | decl = local_declaration                                       { Declaration decl               }
     | WHILE LPAR e = expression RPAR s = statement                   { Loop (LoopInitWhile, e, [], s) }
     | DO s = statement WHILE LPAR e = expression RPAR SEMCOL         { Loop (LoopInitDo,    e, [], s) }
     | FOR
@@ -157,10 +182,15 @@ statement:
     | DEFAULT COL             { DefaultCase }
     | BREAK SEMCOL            { Break       }
     | CONTINUE SEMCOL         { Continue    }
+    | DISCARD SEMCOL          { Discard     }
 
 for_init:
-    | l = separated_list(COMMA, expression) { LoopInitExpr l }
-    | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) { LoopInitDecl (t, l) }
+    | l = separated_list(COMMA, expression) { LoopInitExpr l    }
+    | decl = local_declaration              { LoopInitDecl decl }
+
+local_declaration:
+    | q = local_qualifiers t = type_ l = separated_nonempty_list(COMMA, typed_declaration) SEMCOL
+        { q, t, l }
 
 typed_declaration:
     | var = var init = var_init? { let id, size = var in id, size, init }

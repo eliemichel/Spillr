@@ -15,7 +15,7 @@ and structure_declaration = {
     fields: (type_ * string) list;
 }
 
-and global_variable_declaration = qualifiers * type_ * string
+and global_variable_declaration = global_qualifiers * type_ * string
 
 and function_declaration = {
     name: string;
@@ -33,7 +33,19 @@ and parameter_qualifier =
     | OutParam
     | InOutParam
 
-and qualifiers = storage option * auxiliary option * memory list * precision option
+and global_qualifiers =
+    invariant_qualifier option *
+    interpolation_qualifier option *
+    layout_qualifier list *
+    storage option *
+    auxiliary option *
+    memory list *
+    precision option
+
+and local_qualifiers = storage option * auxiliary option * memory list * precision option
+
+and invariant_qualifier =
+    | Invariant
 
 and storage =
     | Const
@@ -44,6 +56,13 @@ and storage =
     | Varying
     | Buffer
     | Shared
+
+and interpolation_qualifier =
+    | Flat
+    | NoPerspective
+    | Smooth
+
+and layout_qualifier = string * string option
 
 and auxiliary =
     | Centroid
@@ -75,8 +94,9 @@ and statement =
     | DefaultCase
     | Break
     | Continue
+    | Discard
 
-and var_declaration = type_ * (string * string option * expression option) list
+and var_declaration = local_qualifiers * type_ * (string * string option * expression option) list
 
 and for_init = (* Variables can be declared inside for loops initializer *)
     | LoopInitExpr of expression list
@@ -228,14 +248,86 @@ let rec string_of_expression = function
     | Binop (op, e1, e2) -> (string_of_expression e1) ^ " " ^ (string_of_operator op) ^ " " ^ (string_of_expression e2)
     | Assignment (op, e1, e2) -> (string_of_expression e1) ^ " " ^ (string_of_assignment_operator op) ^ " " ^ (string_of_expression e2)
 
-let string_of_var_declaration (t, l) =
+let string_of_auxiliary_option = function
+    | None          -> ""
+    | Some Centroid -> "centroid "
+    | Some Sample   -> "sample "
+    | Some Patch    -> "patch "
+
+let string_of_interpolation_option = function
+    | None               -> ""
+    | Some Flat          -> "flat "
+    | Some NoPerspective -> "noperspective "
+    | Some Smooth        -> "smooth "
+
+let string_of_invariant_qualifier_option = function
+    | None           -> ""
+    | Some Invariant -> "invariant "
+
+let string_of_storage_option = function
+    | None           -> ""
+    | Some Const     -> "const "
+    | Some In        -> "in "
+    | Some Out       -> "out "
+    | Some Attribute -> "attribute "
+    | Some Uniform   -> "uniform "
+    | Some Varying   -> "varying "
+    | Some Buffer    -> "buffer "
+    | Some Shared    -> "shared "
+
+let string_of_memory = function
+    | Coherent  -> "coherent "
+    | Volatile  -> "volatile "
+    | Restrict  -> "restrict "
+    | ReadOnly  -> "readonly "
+    | WriteOnly -> "writeonly "
+
+let string_of_precision_option = function
+    | None         -> ""
+    | Some Lowp    -> "lowp "
+    | Some Mediump -> "mediump "
+    | Some Highp   -> "highp "
+
+let string_of_layout_qualifiers = function
+    | [] -> ""
+    | l  ->
+        let f = function
+            | name, None       -> name
+            | name, Some value -> name ^ " = " ^ value
+        in "layout(" ^ (join ", " (List.map f l)) ^ ") "
+
+let string_of_global_qualifiers (inv, interp, layout, storage, aux, mem, prec) =
+    (string_of_invariant_qualifier_option inv) ^
+    (string_of_interpolation_option interp) ^
+    (string_of_layout_qualifiers layout) ^
+    (string_of_storage_option storage) ^
+    (string_of_auxiliary_option aux) ^
+    (join " " (List.map string_of_memory mem)) ^
+    (string_of_precision_option prec)
+
+let string_of_local_qualifiers (storage, aux, mem, prec) =
+    (string_of_storage_option storage) ^
+    (string_of_auxiliary_option aux) ^
+    (join " " (List.map string_of_memory mem)) ^
+    (string_of_precision_option prec)
+
+let string_of_global_variable_declaration (qualif, t, name) =
+    (string_of_global_qualifiers qualif) ^ " " ^ (string_of_type t) ^ " " ^ name
+
+let string_of_parameter_qualifier = function
+    | ConstInParam -> "const in"
+    | InParam      -> "in"
+    | OutParam     -> "out"
+    | InOutParam   -> "inout"
+
+let string_of_var_declaration (q, t, l) =
     let s = join ", " (List.map (function
         | (id, None,      None)      -> id
         | (id, Some size, None)      -> id ^ "[" ^ size ^ "]"
         | (id, None,      Some expr) -> id                    ^ " = " ^ (string_of_expression expr)
         | (id, Some size, Some expr) -> id ^ "[" ^ size ^ "]" ^ " = " ^ (string_of_expression expr)
     ) l) in
-        (string_of_type t) ^ " " ^ s ^ ";"
+        (string_of_local_qualifiers q) ^ " " ^ (string_of_type t) ^ " " ^ s ^ ";"
 
 let string_of_for_init = function
     | LoopInitExpr l -> join ", " (List.map string_of_expression l)
@@ -273,60 +365,12 @@ let string_of_statement =
             let l = join ", " (List.map string_of_expression loop) in
             "for (" ^ i ^ " ; " ^ c ^ " ; " ^ l ^ ") " ^ (aux indent body)
         | Switch (e, s) -> "switch (" ^ (string_of_expression e) ^ ") " ^ (aux indent s)
-        | Case e -> "case " ^ (string_of_expression e) ^ ":"
-        | DefaultCase -> "default:"
-        | Break -> "break;" ^ new_line
-        | Continue -> "continue;"
+        | Case e        -> "case " ^ (string_of_expression e) ^ ":"
+        | DefaultCase   -> "default:"
+        | Break         -> "break;" ^ new_line
+        | Continue      -> "continue;"
+        | Discard       -> "discard;"
     in aux ""
-
-let string_of_auxiliary_option = function
-    | None -> ""
-    | Some Centroid    -> "centroid "
-    | Some Sample      -> "sample "
-    | Some Patch       -> "patch "
-
-let string_of_storage_option = function
-    | None -> ""
-    | Some Const ->     "const "
-    | Some In ->        "in "
-    | Some Out ->       "out "
-    | Some Attribute -> "attribute "
-    | Some Uniform ->   "uniform "
-    | Some Varying ->   "varying "
-    | Some Buffer ->    "buffer "
-    | Some Shared ->    "shared "
-
-let string_of_memory = function
-    | Coherent -> "coherent "
-    | Volatile -> "volatile "
-    | Restrict -> "restrict "
-    | ReadOnly -> "readonly "
-    | WriteOnly -> "writeonly "
-
-let string_of_precision_option = function
-    | None -> ""
-    | Some Lowp    -> "lowp "
-    | Some Mediump -> "mediump "
-    | Some Highp   -> "highp "
-
-let rec string_of_memory_list = function
-    | mem :: t -> (string_of_memory mem) ^ (string_of_memory_list t)
-    | [] -> ""
-
-let string_of_qualifiers (storage, aux, mem, prec) =
-    (string_of_storage_option storage) ^
-    (string_of_auxiliary_option aux) ^
-    (string_of_memory_list mem) ^
-    (string_of_precision_option prec)
-
-let string_of_global_variable_declaration (qualif, t, name) =
-    (string_of_qualifiers qualif) ^ " " ^ (string_of_type t) ^ " " ^ name
-
-let string_of_parameter_qualifier = function
-    | ConstInParam -> "const in"
-    | InParam      -> "in"
-    | OutParam     -> "out"
-    | InOutParam   -> "inout"
 
 let string_of_function_declaration decl =
     let s = (string_of_type decl.type_) ^ " " ^ decl.name ^ "(" in
