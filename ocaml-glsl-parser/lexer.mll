@@ -58,7 +58,8 @@ let line_separator =
       ['\n' '\r']
     | '\n'
 let whitespace = [' ' '\t']+
-let commentaire_simple = "//" [^'\n']* line_separator
+let simple_comment = "//" [^'\n']* line_separator
+let preprocessor_line = "#" [^'\n']* line_separator
 
 rule token = parse
     | line_separator      { newline lexbuf ; token lexbuf}
@@ -106,13 +107,15 @@ rule token = parse
     | '|'    { BITOR }
     | '^'    { BITXOR }
     | '~'    { BITNOT }
+    | '.'    { DOT }
     | ';'    { SEMCOL }
     | ':'    { COL }
     | ','    { COMMA }
     | "<<"   { LFLOW }
     | ">>"   { RFLOW }
     | "/*"   { comment lexbuf }
-    | commentaire_simple { newline lexbuf ; token lexbuf }
+    | simple_comment { newline lexbuf ; token lexbuf }
+    | preprocessor_line { newline lexbuf ; token lexbuf }
     | eof    { EOF }
     | _ as c { raise (Error ("unexpected character : " ^ String.make 1 c)) }
 

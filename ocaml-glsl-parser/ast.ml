@@ -76,7 +76,7 @@ and statement =
     | Break
     | Continue
 
-and var_declaration = type_ * (string * expression option) list
+and var_declaration = type_ * (string * string option * expression option) list
 
 and for_init = (* Variables can be declared inside for loops initializer *)
     | LoopInitExpr of expression list
@@ -89,6 +89,8 @@ and expression =
     | Unsigned of string
     | Bool of bool
     | Ident of string
+    | Member of expression * string
+    | Dereference of expression * expression
     | Constructor of type_
     | Application of expression * expression list
     | PrefixUnop of prefix_unary * expression
@@ -210,12 +212,15 @@ let string_of_assignment_operator = function
     | Bitxor_assign -> "^="
     | Bitor_assign  -> "|="
 
+(* TODO: smart parenthesis *)
 let rec string_of_expression = function
     | Integer s -> s
     | Unsigned s -> s
     | Bool true -> "true"
     | Bool false -> "false"
     | Ident s -> s
+    | Member (e, s) -> "" ^ (string_of_expression e) ^ "." ^ s
+    | Dereference (e1, e2) -> (string_of_expression e1) ^ "[" ^ (string_of_expression e2) ^ "]"
     | Constructor t -> string_of_type t
     | Application (f, args) -> (string_of_expression f) ^ "(" ^ (join ", " (List.map string_of_expression args)) ^ ")"
     | PrefixUnop (op, e) -> (string_of_prefix_unary op) ^ (string_of_expression e)
@@ -225,8 +230,10 @@ let rec string_of_expression = function
 
 let string_of_var_declaration (t, l) =
     let s = join ", " (List.map (function
-        | (var, None)      -> var
-        | (var, Some expr) -> var ^ " = " ^ (string_of_expression expr)
+        | (id, None,      None)      -> id
+        | (id, Some size, None)      -> id ^ "[" ^ size ^ "]"
+        | (id, None,      Some expr) -> id                    ^ " = " ^ (string_of_expression expr)
+        | (id, Some size, Some expr) -> id ^ "[" ^ size ^ "]" ^ " = " ^ (string_of_expression expr)
     ) l) in
         (string_of_type t) ^ " " ^ s ^ ";"
 

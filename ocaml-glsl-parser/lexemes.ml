@@ -2,17 +2,13 @@ open Parser
 
 let types = [
     "void";
+
     "bool";
     "int";
     "uint";
     "float";
     "double";
-    "vec2";
-    "vec3";
-    "vec4";
-    "dvec2";
-    "dvec3";
-    "dvec4";
+
     "bvec2";
     "bvec3";
     "bvec4";
@@ -22,6 +18,13 @@ let types = [
     "uvec2";
     "uvec3";
     "uvec4";
+    "vec2";
+    "vec3";
+    "vec4";
+    "dvec2";
+    "dvec3";
+    "dvec4";
+    
     "mat2";
     "mat3";
     "mat4";

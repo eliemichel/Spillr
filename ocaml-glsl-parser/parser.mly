@@ -9,7 +9,7 @@
 %token OR AND XOR DBLEQ NEQ LT LFLOW RFLOW
 %token LEQ GT GEQ PLUS MINUS STAR DIV MOD NOT INCR DECR
 %token BITNOT BITAND BITOR BITXOR
-%token SEMCOL COL COMMA
+%token SEMCOL COL COMMA DOT
 
 %token ATTRIBUTE CONST UNIFORM VARYING BUFFER SHARED COHERENT VOLATILE RESTRICT READONLY WRITEONLY
 %token ATOMIC_UINT LAYOUT CENTROID FLAT SMOOTH NOPERSPECTIVE PATCH SAMPLE BREAK CONTINUE
@@ -35,6 +35,7 @@
 %left PLUS MINUS
 %left STAR DIV MOD
 %right NOT INCR DECR BITNOT
+%left DOT
 
 %nonassoc IFX
 %nonassoc ELSE
@@ -56,11 +57,11 @@ declaration:
 
 
 structure_declaration:
-    | STRUCT name = IDENT LBRACE fields = separated_list(SEMCOL, struct_field) SEMCOL? RBRACE SEMCOL
+    | STRUCT name = IDENT LBRACE fields = struct_field* RBRACE SEMCOL
         { { struct_name = name; fields = fields } }
 
 struct_field:
-    t = type_ id = IDENT { t, id }
+    t = type_ id = IDENT SEMCOL { t, id }
 
 global_variable_declaration:
     | q = qualifiers t = type_ id = IDENT SEMCOL { q, t, id }
@@ -76,7 +77,7 @@ prototype:
         { t, name, params }
 
 parameter:
-    | q = parameter_qualifiers t = type_ name = IDENT? size = array_size? default = option(default_argument)
+    | q = parameter_qualifiers t = type_ name = IDENT? size = array_size? default = default_argument?
         { q, t, name, size, default }
 
 array_size:
@@ -162,22 +163,24 @@ for_init:
     | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) { LoopInitDecl (t, l) }
 
 typed_declaration:
-    | var = var init = var_init? { var, init }
+    | var = var init = var_init? { let id, size = var in id, size, init }
 
 var:
-    | id = IDENT { id }
+    | id = IDENT size = array_size? { id, size }
 
 var_init:
     | ASSIGN e = expression { e }
 
 expression:
-    | b = BOOL_CONST     { Bool b        }
-    | i = INT_CONST      { Integer i     }
-    | i = UINT_CONST     { Unsigned i    }
-    | t = type_          { Constructor t }
-    | id = IDENT         { Ident id }
+    | b = BOOL_CONST           { Bool b        }
+    | i = INT_CONST            { Integer i     }
+    | i = UINT_CONST           { Unsigned i    }
+    | t = type_                { Constructor t }
+    | id = IDENT               { Ident id      }
+    | LPAR e = expression RPAR { e             }
+    | e = expression DOT id = IDENT                                     { Member (e, id)        }
+    | e1 = expression LBRACKET e2 = expression RBRACKET                 { Dereference (e1, e2)  }
     | f = expression LPAR args = separated_list(COMMA, expression) RPAR { Application (f, args) }
-    | LPAR e = expression RPAR { e }
     | op = prefix_unary e = expression                         { PrefixUnop (op, e)      }
     | e = expression op = postfix_unary                        { PostfixUnop (op, e)     }
     | e1 = expression op = binary_operator e2 = expression     { Binop (op, e1, e2)      }
@@ -185,26 +188,26 @@ expression:
 
 
 %inline binary_operator:
-    | DBLEQ { Dbleq }
-    | NEQ   { Neq   }
-    | LT    { Lt    }
-    | LEQ   { Leq   }
-    | GT    { Gt    }
-    | GEQ   { Geq   }
-    | PLUS  { Add   }
-    | MINUS { Sub   }
-    | STAR  { Mult  }
-    | DIV   { Div   }
-    | MOD   { Mod   }
-    | AND   { And   }
-    | OR    { Or    }
-    | XOR    { Xor }
+    | DBLEQ  { Dbleq  }
+    | NEQ    { Neq    }
+    | LT     { Lt     }
+    | LEQ    { Leq    }
+    | GT     { Gt     }
+    | GEQ    { Geq    }
+    | PLUS   { Add    }
+    | MINUS  { Sub    }
+    | STAR   { Mult   }
+    | DIV    { Div    }
+    | MOD    { Mod    }
+    | AND    { And    }
+    | OR     { Or     }
+    | XOR    { Xor    }
     | BITAND { BitAnd }
-    | BITOR  { BitOr }
+    | BITOR  { BitOr  }
     | BITXOR { BitXor }
     | BITNOT { BitNot }
-    | LFLOW  { LFlow }
-    | RFLOW  { RFlow }
+    | LFLOW  { LFlow  }
+    | RFLOW  { RFlow  }
 
 prefix_unary:
     | NOT   { Not        }
@@ -218,7 +221,7 @@ postfix_unary:
     | DECR  { PostfixDecr }
 
 %inline assignment_operator:
-    | ASSIGN        { Assign   }
+    | ASSIGN        { Assign        }
     | PLUS_ASSIGN   { Plus_assign   }
     | MINUS_ASSIGN  { Minus_assign  }
     | STAR_ASSIGN   { Star_assign   }
