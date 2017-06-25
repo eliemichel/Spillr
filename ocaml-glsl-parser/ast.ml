@@ -66,16 +66,22 @@ and statement =
     | Empty
     | Expression of expression
     | Bloc of statement list
-    | Group of statement list  (* non-scoped bloc, for un-sugar-ing only *)
-    | Declaration of type_ * string * expression option
+    | Declaration of var_declaration
     | Return of expression option
     | If_else of expression * statement * statement
-    | For of expression list * expression * expression list * statement
+    | For of for_init * expression * expression list * statement
     | Switch of expression * statement
     | Case of expression
     | DefaultCase
     | Break
     | Continue
+
+and var_declaration = type_ * (string * expression option) list
+
+and for_init = (* Variables can be declared inside for loops initializer *)
+    | ForInitExpr of expression list
+    | ForInitDecl of var_declaration
+    | ForInitWhile  (* means that the for loop is an un-sugar-ed while*)
 
 and expression =
     | Integer of string
@@ -216,6 +222,18 @@ let rec string_of_expression = function
     | Binop (op, e1, e2) -> (string_of_expression e1) ^ " " ^ (string_of_operator op) ^ " " ^ (string_of_expression e2)
     | Assignment (op, e1, e2) -> (string_of_expression e1) ^ " " ^ (string_of_assignment_operator op) ^ " " ^ (string_of_expression e2)
 
+let string_of_var_declaration (t, l) =
+    let s = join ", " (List.map (function
+        | (var, None)      -> var
+        | (var, Some expr) -> var ^ " = " ^ (string_of_expression expr)
+    ) l) in
+        (string_of_type t) ^ " " ^ s ^ ";"
+
+let string_of_for_init = function
+    | ForInitExpr l -> join ", " (List.map string_of_expression l)
+    | ForInitDecl d -> string_of_var_declaration d
+    | ForInitWhile -> ""
+
 let string_of_statement =
     let rec aux indent =
         let indent_more = indent ^ "\t" in
@@ -225,9 +243,7 @@ let string_of_statement =
         | Empty -> ";"
         | Expression e -> (string_of_expression e) ^ ";"
         | Bloc l -> "{" ^ new_line_more ^ (join new_line_more (List.map (aux indent_more) l)) ^ new_line ^ "}"
-        | Group l -> (join new_line (List.map (aux indent_more) l))
-        | Declaration (t, var, None) -> (string_of_type t) ^ " " ^ var ^ ";"
-        | Declaration (t, var, Some expr) -> (string_of_type t) ^ " " ^ var ^ " = " ^ (string_of_expression expr) ^ ";"
+        | Declaration d -> string_of_var_declaration d
         | Return (Some expr) -> "return " ^ (string_of_expression expr) ^ ";"
         | Return None -> "return;"
         | If_else (cond, s1, Empty) ->
@@ -236,11 +252,11 @@ let string_of_statement =
         | If_else (cond, s1, s2) ->
             let c = string_of_expression cond in
             "if (" ^ c ^ ") " ^ (aux indent s1) ^ " else " ^ (aux indent s2)
-        | For ([], cond, [], body) ->
+        | For (ForInitWhile, cond, [], body) ->
             let c = (string_of_expression cond) in
             "while (" ^ c ^ ") " ^ (aux indent body)
         | For (init, cond, loop, body) ->
-            let i = join ", " (List.map string_of_expression init) in
+            let i = string_of_for_init init in
             let c = (string_of_expression cond) in
             let l = join ", " (List.map string_of_expression loop) in
             "for (" ^ i ^ " ; " ^ c ^ " ; " ^ l ^ ") " ^ (aux indent body)

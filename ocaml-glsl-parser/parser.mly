@@ -137,10 +137,11 @@ statement:
     | RETURN e = expression? SEMCOL                                  { Return e                   }
     | IF LPAR e = expression RPAR s = statement %prec IFX            { If_else (e, s, Empty)      }
     | IF LPAR e = expression RPAR s1 = statement ELSE s2 = statement { If_else (e, s1, s2)        }
-    | WHILE LPAR e = expression RPAR s = statement { For ([], e, [], s) }
+    | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) SEMCOL { Declaration (t, l) }
+    | WHILE LPAR e = expression RPAR s = statement { For (ForInitWhile, e, [], s) }
     | FOR
         LPAR
-            init = separated_list(COMMA, expression) SEMCOL
+            init = for_init SEMCOL
             e = expression? SEMCOL
             loop = separated_list(COMMA, expression)
         RPAR
@@ -149,13 +150,15 @@ statement:
             | None -> For (init, Bool true, loop, s)
             | Some c -> For (init, c, loop, s)
         }
-    | t = type_  l = separated_nonempty_list(COMMA, typed_declaration) SEMCOL
-        { Group (List.map (fun (var, init) -> Declaration (t, var, init)) l) }
     | SWITCH LPAR e = expression RPAR sb = statement_bloc { Switch (e, Bloc sb) }
     | CASE e = expression COL { Case e      }
     | DEFAULT COL             { DefaultCase }
     | BREAK SEMCOL            { Break       }
     | CONTINUE SEMCOL         { Continue    }
+
+for_init:
+    | l = separated_list(COMMA, expression) { ForInitExpr l }
+    | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) { ForInitDecl (t, l) }
 
 typed_declaration:
     | var = var init = var_init? { var, init }
