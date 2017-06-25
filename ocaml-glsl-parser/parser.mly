@@ -9,7 +9,7 @@
 %token OR AND XOR DBLEQ NEQ LT LFLOW RFLOW
 %token LEQ GT GEQ PLUS MINUS STAR DIV MOD NOT INCR DECR
 %token BITNOT BITAND BITOR BITXOR
-%token DOT SEMCOL COL COMMA
+%token SEMCOL COL COMMA
 
 %token ATTRIBUTE CONST UNIFORM VARYING BUFFER SHARED COHERENT VOLATILE RESTRICT READONLY WRITEONLY
 %token ATOMIC_UINT LAYOUT CENTROID FLAT SMOOTH NOPERSPECTIVE PATCH SAMPLE BREAK CONTINUE
@@ -35,9 +35,6 @@
 %left PLUS MINUS
 %left STAR DIV MOD
 %right NOT INCR DECR BITNOT
-%left DOT
-%left LBRACKET
-%left LPAR
 
 %nonassoc IFX
 %nonassoc ELSE
@@ -66,20 +63,20 @@ struct_field:
     t = type_ id = IDENT { t, id }
 
 global_variable_declaration:
-    | t = type_ id = IDENT SEMCOL { Global_variable id }
+    | q = qualifiers t = type_ id = IDENT SEMCOL { q, t, id }
 
 function_declaration:
     | p = prototype statements = statement_bloc
-        { let (t, name, args) = p in { name = name; type_ = t; arguments = args; body = Bloc statements } }
+        { let (t, name, params) = p in { name = name; type_ = t; parameters = params; body = Bloc statements } }
     | p = prototype SEMCOL
-        { let (t, name, args) = p in { name = name; type_ = t; arguments = args; body = Empty } }
+        { let (t, name, params) = p in { name = name; type_ = t; parameters = params; body = Empty } }
 
 prototype:
-    | t = type_ name = IDENT LPAR args = separated_list(COMMA, argument) RPAR
-        { t, name, args }
+    | t = type_ name = IDENT LPAR params = separated_list(COMMA, parameter) RPAR
+        { t, name, params }
 
-argument:
-    | q = qualifiers t = type_ name = IDENT? size = array_size? default = option(default_argument)
+parameter:
+    | q = parameter_qualifiers t = type_ name = IDENT? size = array_size? default = option(default_argument)
         { q, t, name, size, default }
 
 array_size:
@@ -89,6 +86,12 @@ array_size:
 qualifiers:
     | s = storage? a = auxiliary? m = memory* p = precision?
         { s, a, m, p }
+
+parameter_qualifiers:
+    | CONST IN  { ConstInParam }
+    | IN        { InParam      }
+    | OUT       { OutParam     }
+    | INOUT     { InOutParam   }
 
 storage:
     | CONST     { Const     }
@@ -131,7 +134,6 @@ statement:
     | SEMCOL                                                         { Empty                      }
     | e = expression SEMCOL                                          { Expression e               }
     | b = statement_bloc                                             { Bloc b                     }
-    | t = type_ var = var init = var_init? SEMCOL                    { Declaration (t, var, init) }
     | RETURN e = expression? SEMCOL                                  { Return e                   }
     | IF LPAR e = expression RPAR s = statement %prec IFX            { If_else (e, s, Empty)      }
     | IF LPAR e = expression RPAR s1 = statement ELSE s2 = statement { If_else (e, s1, s2)        }
@@ -147,6 +149,16 @@ statement:
             | None -> For (init, Bool true, loop, s)
             | Some c -> For (init, c, loop, s)
         }
+    | t = type_  l = separated_nonempty_list(COMMA, typed_declaration) SEMCOL
+        { Group (List.map (fun (var, init) -> Declaration (t, var, init)) l) }
+    | SWITCH LPAR e = expression RPAR sb = statement_bloc { Switch (e, Bloc sb) }
+    | CASE e = expression COL { Case e      }
+    | DEFAULT COL             { DefaultCase }
+    | BREAK SEMCOL            { Break       }
+    | CONTINUE SEMCOL         { Continue    }
+
+typed_declaration:
+    | var = var init = var_init? { var, init }
 
 var:
     | id = IDENT { id }
@@ -155,15 +167,16 @@ var_init:
     | ASSIGN e = expression { e }
 
 expression:
-    | b = BOOL_CONST     { Bool b     }
-    | i = INT_CONST      { Integer i  }
-    | i = UINT_CONST     { Unsigned i }
-    | id = IDENT         { Ident id   }
+    | b = BOOL_CONST     { Bool b        }
+    | i = INT_CONST      { Integer i     }
+    | i = UINT_CONST     { Unsigned i    }
+    | t = type_          { Constructor t }
+    | id = IDENT         { Ident id }
     | f = expression LPAR args = separated_list(COMMA, expression) RPAR { Application (f, args) }
     | LPAR e = expression RPAR { e }
-    | op = prefix_unary e = expression { PrefixUnop (op, e) }
-    | e = expression op = postfix_unary { PostfixUnop (op, e) }
-    | e1 = expression op = binary_operator e2 = expression { Binop (op, e1, e2) }
+    | op = prefix_unary e = expression                         { PrefixUnop (op, e)      }
+    | e = expression op = postfix_unary                        { PostfixUnop (op, e)     }
+    | e1 = expression op = binary_operator e2 = expression     { Binop (op, e1, e2)      }
     | e1 = expression op = assignment_operator e2 = expression { Assignment (op, e1, e2) }
 
 
@@ -201,6 +214,7 @@ postfix_unary:
     | DECR  { PostfixDecr }
 
 %inline assignment_operator:
+    | ASSIGN        { Assign   }
     | PLUS_ASSIGN   { Plus_assign   }
     | MINUS_ASSIGN  { Minus_assign  }
     | STAR_ASSIGN   { Star_assign   }

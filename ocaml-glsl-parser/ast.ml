@@ -15,20 +15,25 @@ and structure_declaration = {
     fields: (type_ * string) list;
 }
 
-and global_variable_declaration =
-    | Global_variable of string
+and global_variable_declaration = qualifiers * type_ * string
 
 and function_declaration = {
     name: string;
     type_: type_;
-    arguments: function_argument list;
+    parameters: function_parameter list;
     body: statement; (* either Empty -- for prototypes -- of Bloc *)
 }
 
-and qualifiers = storage option * auxiliary option * memory list * precision option
+and function_parameter =
+    parameter_qualifier * type_ * string option * string option * expression option
 
-and function_argument =
-    qualifiers * type_ * string option * string option * expression option
+and parameter_qualifier =
+    | ConstInParam
+    | InParam
+    | OutParam
+    | InOutParam
+
+and qualifiers = storage option * auxiliary option * memory list * precision option
 
 and storage =
     | Const
@@ -61,16 +66,23 @@ and statement =
     | Empty
     | Expression of expression
     | Bloc of statement list
+    | Group of statement list  (* non-scoped bloc, for un-sugar-ing only *)
     | Declaration of type_ * string * expression option
     | Return of expression option
     | If_else of expression * statement * statement
     | For of expression list * expression * expression list * statement
+    | Switch of expression * statement
+    | Case of expression
+    | DefaultCase
+    | Break
+    | Continue
 
 and expression =
     | Integer of string
     | Unsigned of string
     | Bool of bool
     | Ident of string
+    | Constructor of type_
     | Application of expression * expression list
     | PrefixUnop of prefix_unary * expression
     | PostfixUnop of postfix_unary * expression
@@ -111,6 +123,7 @@ and postfix_unary =
     | PostfixDecr
 
 and assignment_operator =
+    | Assign
     | Plus_assign
     | Minus_assign
     | Star_assign
@@ -123,8 +136,6 @@ and assignment_operator =
     | Bitor_assign
 
 and type_ =
-    | Void
-    | Int
     | TIdent of string
 
 
@@ -135,8 +146,6 @@ let rec join sep = function
 
 
 let string_of_type = function
-    | Void -> "void"
-    | Int -> "int"
     | TIdent id -> id
 
 let string_of_structure_declaration decl =
@@ -147,9 +156,6 @@ let string_of_structure_declaration decl =
             beginning
             decl.fields
         ) ^ "};"
-
-let string_of_global_variable_declaration = function
-    | Global_variable s -> "Global_variable " ^ s
 
 let string_of_operator = function
     | Dbleq -> "=="
@@ -185,6 +191,7 @@ let string_of_postfix_unary = function
     | PostfixDecr -> "--"
 
 let string_of_assignment_operator = function
+    | Assign        -> "="
     | Plus_assign   -> "+="
     | Minus_assign  -> "-="
     | Star_assign   -> "*="
@@ -202,6 +209,7 @@ let rec string_of_expression = function
     | Bool true -> "true"
     | Bool false -> "false"
     | Ident s -> s
+    | Constructor t -> string_of_type t
     | Application (f, args) -> (string_of_expression f) ^ "(" ^ (join ", " (List.map string_of_expression args)) ^ ")"
     | PrefixUnop (op, e) -> (string_of_prefix_unary op) ^ (string_of_expression e)
     | PostfixUnop (op, e) -> (string_of_expression e) ^ (string_of_postfix_unary op)
@@ -217,6 +225,7 @@ let string_of_statement =
         | Empty -> ";"
         | Expression e -> (string_of_expression e) ^ ";"
         | Bloc l -> "{" ^ new_line_more ^ (join new_line_more (List.map (aux indent_more) l)) ^ new_line ^ "}"
+        | Group l -> (join new_line (List.map (aux indent_more) l))
         | Declaration (t, var, None) -> (string_of_type t) ^ " " ^ var ^ ";"
         | Declaration (t, var, Some expr) -> (string_of_type t) ^ " " ^ var ^ " = " ^ (string_of_expression expr) ^ ";"
         | Return (Some expr) -> "return " ^ (string_of_expression expr) ^ ";"
@@ -235,6 +244,11 @@ let string_of_statement =
             let c = (string_of_expression cond) in
             let l = join ", " (List.map string_of_expression loop) in
             "for (" ^ i ^ " ; " ^ c ^ " ; " ^ l ^ ") " ^ (aux indent body)
+        | Switch (e, s) -> "switch (" ^ (string_of_expression e) ^ ") " ^ (aux indent s)
+        | Case e -> "case " ^ (string_of_expression e) ^ ":"
+        | DefaultCase -> "default:"
+        | Break -> "break;" ^ new_line
+        | Continue -> "continue;"
     in aux ""
 
 let string_of_auxiliary_option = function
@@ -277,13 +291,22 @@ let string_of_qualifiers (storage, aux, mem, prec) =
     (string_of_memory_list mem) ^
     (string_of_precision_option prec)
 
+let string_of_global_variable_declaration (qualif, t, name) =
+    (string_of_qualifiers qualif) ^ " " ^ (string_of_type t) ^ " " ^ name
+
+let string_of_parameter_qualifier = function
+    | ConstInParam -> "const in"
+    | InParam      -> "in"
+    | OutParam     -> "out"
+    | InOutParam   -> "inout"
+
 let string_of_function_declaration decl =
     let s = (string_of_type decl.type_) ^ " " ^ decl.name ^ "(" in
     let s, _ = List.fold_left
         (fun (acc, is_first) (qualif, t, arg_name, array_size, default) ->
             acc ^
             (if is_first then "" else ", ") ^
-            (string_of_qualifiers qualif) ^
+            (string_of_parameter_qualifier qualif) ^
             (string_of_type t) ^
             (
                 match arg_name with
@@ -301,7 +324,7 @@ let string_of_function_declaration decl =
                 | Some expr -> " = " ^ (string_of_expression expr)
             ), false
         )
-        (s, true) decl.arguments
+        (s, true) decl.parameters
     in
         s ^ ")" ^ (string_of_statement decl.body)
 

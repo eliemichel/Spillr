@@ -106,7 +106,6 @@ rule token = parse
     | '|'    { BITOR }
     | '^'    { BITXOR }
     | '~'    { BITNOT }
-    | '.'    { DOT }
     | ';'    { SEMCOL }
     | ':'    { COL }
     | ','    { COMMA }
