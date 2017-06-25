@@ -69,7 +69,7 @@ and statement =
     | Declaration of var_declaration
     | Return of expression option
     | If_else of expression * statement * statement
-    | For of for_init * expression * expression list * statement
+    | Loop of for_init * expression * expression list * statement
     | Switch of expression * statement
     | Case of expression
     | DefaultCase
@@ -79,9 +79,10 @@ and statement =
 and var_declaration = type_ * (string * expression option) list
 
 and for_init = (* Variables can be declared inside for loops initializer *)
-    | ForInitExpr of expression list
-    | ForInitDecl of var_declaration
-    | ForInitWhile  (* means that the for loop is an un-sugar-ed while*)
+    | LoopInitExpr of expression list
+    | LoopInitDecl of var_declaration
+    | LoopInitWhile  (* means that the for loop is an un-sugar-ed while*)
+    | LoopInitDo     (* means that the for loop is an un-sugar-ed do-while*)
 
 and expression =
     | Integer of string
@@ -230,9 +231,10 @@ let string_of_var_declaration (t, l) =
         (string_of_type t) ^ " " ^ s ^ ";"
 
 let string_of_for_init = function
-    | ForInitExpr l -> join ", " (List.map string_of_expression l)
-    | ForInitDecl d -> string_of_var_declaration d
-    | ForInitWhile -> ""
+    | LoopInitExpr l -> join ", " (List.map string_of_expression l)
+    | LoopInitDecl d -> string_of_var_declaration d
+    | LoopInitWhile -> ""
+    | LoopInitDo    -> ""
 
 let string_of_statement =
     let rec aux indent =
@@ -252,10 +254,13 @@ let string_of_statement =
         | If_else (cond, s1, s2) ->
             let c = string_of_expression cond in
             "if (" ^ c ^ ") " ^ (aux indent s1) ^ " else " ^ (aux indent s2)
-        | For (ForInitWhile, cond, [], body) ->
+        | Loop (LoopInitWhile, cond, [], body) ->
             let c = (string_of_expression cond) in
             "while (" ^ c ^ ") " ^ (aux indent body)
-        | For (init, cond, loop, body) ->
+        | Loop (LoopInitDo, cond, [], body) ->
+            let c = (string_of_expression cond) in
+            "do " ^ (aux indent body) ^ " while (" ^ c ^ ");"
+        | Loop (init, cond, loop, body) ->
             let i = string_of_for_init init in
             let c = (string_of_expression cond) in
             let l = join ", " (List.map string_of_expression loop) in

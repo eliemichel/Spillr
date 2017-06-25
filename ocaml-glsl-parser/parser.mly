@@ -131,14 +131,15 @@ statement_bloc:
         { statements }
 
 statement:
-    | SEMCOL                                                         { Empty                      }
-    | e = expression SEMCOL                                          { Expression e               }
-    | b = statement_bloc                                             { Bloc b                     }
-    | RETURN e = expression? SEMCOL                                  { Return e                   }
-    | IF LPAR e = expression RPAR s = statement %prec IFX            { If_else (e, s, Empty)      }
-    | IF LPAR e = expression RPAR s1 = statement ELSE s2 = statement { If_else (e, s1, s2)        }
-    | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) SEMCOL { Declaration (t, l) }
-    | WHILE LPAR e = expression RPAR s = statement { For (ForInitWhile, e, [], s) }
+    | SEMCOL                                                         { Empty                          }
+    | e = expression SEMCOL                                          { Expression e                   }
+    | b = statement_bloc                                             { Bloc b                         }
+    | RETURN e = expression? SEMCOL                                  { Return e                       }
+    | IF LPAR e = expression RPAR s = statement %prec IFX            { If_else (e, s, Empty)          }
+    | IF LPAR e = expression RPAR s1 = statement ELSE s2 = statement { If_else (e, s1, s2)            }
+    | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) SEMCOL { Declaration (t, l)     }
+    | WHILE LPAR e = expression RPAR s = statement                   { Loop (LoopInitWhile, e, [], s) }
+    | DO s = statement WHILE LPAR e = expression RPAR SEMCOL         { Loop (LoopInitDo,    e, [], s) }
     | FOR
         LPAR
             init = for_init SEMCOL
@@ -147,8 +148,8 @@ statement:
         RPAR
         s = statement
         { match e with
-            | None -> For (init, Bool true, loop, s)
-            | Some c -> For (init, c, loop, s)
+            | None   -> Loop (init, Bool true, loop, s)
+            | Some c -> Loop (init, c, loop, s)
         }
     | SWITCH LPAR e = expression RPAR sb = statement_bloc { Switch (e, Bloc sb) }
     | CASE e = expression COL { Case e      }
@@ -157,8 +158,8 @@ statement:
     | CONTINUE SEMCOL         { Continue    }
 
 for_init:
-    | l = separated_list(COMMA, expression) { ForInitExpr l }
-    | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) { ForInitDecl (t, l) }
+    | l = separated_list(COMMA, expression) { LoopInitExpr l }
+    | t = type_ l = separated_nonempty_list(COMMA, typed_declaration) { LoopInitDecl (t, l) }
 
 typed_declaration:
     | var = var init = var_init? { var, init }
